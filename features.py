@@ -63,6 +63,14 @@ def price_mom1(df, feature_dict):
         sm = val['mom'].sum()
         feature_dict[k].append(1 if float(sm)/cnt > 0.5 else 0)
 
+# percentage of times price went up 3times above 50%?
+def price_mom3(df, feature_dict):
+    pass
+
+# number of times price and volume went up together
+def price_and_vol_mom(df, feature_dict):
+    pass
+
 # percentage of times volume went up was over 50?
 def vol_mom1(df, feature_dict):
     mom1 = MOM_vol(df,1)
