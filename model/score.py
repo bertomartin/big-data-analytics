@@ -7,6 +7,7 @@ from pyspark.mllib.tree import DecisionTree, DecisionTreeModel
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 from pyspark.mllib.regression import LabeledPoint
 from numpy import array
+
 import sys
 
 ## Constants
@@ -43,8 +44,14 @@ def main(sc, filename):
     labels_and_preds_collected = labels_and_preds.collect()
     print "\n"
     print "Predictions: Logistic Regression"
+    y_true = []
+    y_pred = []
     for row in labels_and_preds_collected:
-        print "predicted: {0} - actual: {1}\n".format(row[0], row[1])
+        y_true.append(row[1])
+        y_pred.append(row[0])
+        # print "predicted: {0} - actual: {1}\n".format(row[0], row[1])
+    #TODO: write y_pred, y_true to 2 column csv
+
 
     accuracy = labels_and_preds.filter(lambda (v,p): v == p).count() / float(labeledPointsRdd.count())
 
