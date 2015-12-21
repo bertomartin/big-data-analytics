@@ -1,4 +1,4 @@
-# big-data-analytics
+# Big Data Analytics - final project
 ## Overview
 The aim of this project is to build a model that predicts whether a company will beat consensus estimates when they report earnings.
 
