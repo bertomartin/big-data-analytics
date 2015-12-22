@@ -8,6 +8,7 @@ from pyspark.mllib.regression import LabeledPoint
 from numpy import array
 from time import time
 import sys
+from sklearn import metrics as sk_metrics
 
 # constants
 APP_NAME = "earnings pop"
@@ -21,66 +22,67 @@ def parse_lines(line):
     target = line_split[7]
     return LabeledPoint(target, array([float(x) for x in clean_line_split]))
 
-def main(sc, filename):
-    training_data_raw = sc.textFile(filename)
-    print "Data size is {}".format(training_data_raw.count())
+def get_data(sc, filename):
+    weights = [.6, .4]
+    data_raw = sc.textFile(filename)
+    labeled_points = data_raw.map(parse_lines)
+    train, test = labeled_points.randomSplit(weights)
+    return train, test
 
-    weights = [.8, .2]
-    seed = 99
-    training_data = training_data_raw.map(parse_lines)
-    train_data, test_data = training_data.randomSplit(weights, seed)
-    print "training data count: {}".format(train_data.count())
-    print "testing data count: {}".format(test_data.count())
-    print_box(stars="*")
-    #--------------------- Build the models -------------------------
-    # Logistic Regression
-    t0 = time()
-    logit_model = LogisticRegressionWithLBFGS.train(train_data)
-    logit_model.save(sc, "logit_model.model")
-    tt = time() - t0
-    print "Logistic Classifier trained in {} seconds".format(round(tt,3))
+def create_model(name, training):
+    if name == 'logistic':
+        print_box()
+        print "Logistic Regression Model"
+        print_box()
+        model = LogisticRegressionWithLBFGS.train(training)
+    elif name == 'tree':
+        print_box()
+        print "Decision Tree Model"
+        print_box()
+        model = DecisionTree.trainClassifier(training, numClasses=2, categoricalFeaturesInfo={},
+                                     impurity='gini', maxDepth=5, maxBins=32)
+    elif name == 'rf':
+        print_box()
+        print "Random Forest Model"
+        print_box()
+        model = RandomForest.trainClassifier(training, numClasses=2, categoricalFeaturesInfo={},
+                                    impurity='gini', maxDepth=5, maxBins=100)
 
-    # compute the labels and predictions on test data (hold out set)
-    labels_and_preds = test_data.map(lambda p: (float(logit_model.predict(p.features)), p.label  ))
+    return model
 
-    # compute metrics
-    metrics = BinaryClassificationMetrics(labels_and_preds)
-
-    # Area under precision-recall curve
-    print "Area under PR (Logistic) = {}".format(metrics.areaUnderPR * 100.0)
-
-    # Area under ROC curve
-    print "Area under ROC (Logistic) = {}".format(metrics.areaUnderROC * 100.0)
-
-    # compute accuracy
-    test_accuracy = labels_and_preds.filter(lambda (v,p): v == p).count() / float(test_data.count())
+def evaluate_model(labels, predictions):
+    '''
+    using labels and predictions, evaluate with scikit-learn
+    '''
+    test_accuracy = sk_metrics.accuracy_score(labels, predictions)
     print "Testing accuracy {}".format(round(test_accuracy, 4))
-    print_box(cnt=70)
+    print "Confusion Matrix"
+    print_box(stars="-")
+    print sk_metrics.confusion_matrix(labels, predictions)
+    target_names = ['not-beat:0', 'beat:1']
+    print sk_metrics.classification_report(labels, predictions, target_names=target_names)
+    print_box(stars="-")
 
-    # Decision tree
-    t0 = time()
-    dt_model = DecisionTree.trainClassifier(training_data, numClasses=2, categoricalFeaturesInfo={},
-                                         impurity='gini', maxDepth=5, maxBins=32)
-    dt_model.save(sc, "dt_model.model")
 
-    tt = time() - t0
-    print "Decision Tree Classifier trained in {} seconds".format(round(tt,3))
-    predictions = dt_model.predict(test_data.map(lambda p: p.features))
-    labels_and_preds = test_data.map(lambda p: p.label).zip(predictions)
 
-    # compute metrics
-    dt_metrics = BinaryClassificationMetrics(labels_and_preds)
+def main(sc, filename):
 
-    # Area under precision-recall curve
-    print_box(cnt=70)
-    print "Area under PR (Decision Tree) = {}".format(dt_metrics.areaUnderPR * 100.0)
+    training, testing = get_data(sc, filename)
+    model = create_model('tree', training)
 
-    # Area under ROC curve
-    print "Area under ROC (Decision Tree) = {}".format(dt_metrics.areaUnderROC * 100.0)
+    predictions = model.predict(testing.map(lambda p: p.features))
+    labs = testing.map(lambda p: p.label)
+    labels_and_preds = labs.zip(predictions)
 
-    test_accuracy = labels_and_preds.filter(lambda (v, p): v == p).count() / float(test_data.count())
-    print "Prediction made in {} seconds. Test accuracy is {}".format(round(tt,3), round(test_accuracy,4))
-    print_box(cnt=70)
+    labels_and_predictions_collected = labels_and_preds.collect()
+
+    # extract labels and predictions from test data
+    labels = map(lambda p: p[0], labels_and_predictions_collected)
+    predictions = map(lambda p: p[1], labels_and_predictions_collected)
+
+    # evaluate model
+    evaluate_model(labels, predictions)
+
 
 if __name__ == "__main__":
     # configure options
