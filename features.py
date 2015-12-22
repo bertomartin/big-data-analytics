@@ -38,7 +38,7 @@ def price_above_20(df, feature_dict):
         cnt = val['price_above'].count()
         sm = val['price_above'].sum()
         feature_dict[k].append(1 if float(sm)/cnt > 0.5 else 0)
-        # pdb.set_trace()
+
 
 # percentage of times price was above 10d ema above 50?
 def price_above_10_ema(df, feature_dict):
