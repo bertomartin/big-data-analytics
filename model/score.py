@@ -3,7 +3,7 @@
 from pyspark import SparkConf, SparkContext
 from pyspark.mllib.classification import *
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
-from pyspark.mllib.tree import DecisionTree, DecisionTreeModel
+from pyspark.mllib.tree import DecisionTree, DecisionTreeModel, RandomForestModel
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 from pyspark.mllib.regression import LabeledPoint
 from numpy import array
@@ -23,6 +23,16 @@ def parse_lines(line):
     target = line_split[7]
     return LabeledPoint(target, array([float(x) for x in clean_line_split]))
 
+def evaluate_model(type):
+    if type == 'logistic':
+        model = LogisticRegressionModel.load(sc, "logit_model.model")
+    elif type == 'tree':
+        model = DecisionTreeModel.load(sc, "dt_model.model")
+    elif type == 'rf':
+        model = RandomForestModel.load(sc, "rf_model.model")
+
+
+
 ## Driver function
 def main(sc, filename):
     '''
@@ -38,6 +48,7 @@ def main(sc, filename):
     #load models
     logit_model = LogisticRegressionModel.load(sc, "logit_model.model")
     dt_model = DecisionTreeModel.load(sc, "dt_model.model")
+    rf_model = RandomForestModel.load(sc, "rf_model.model")
 
     #logistic predictions
     labels_and_preds = labeledPointsRdd.map(lambda p: (float(logit_model.predict(p.features)), p.label  ))
@@ -50,7 +61,6 @@ def main(sc, filename):
         y_true.append(row[1])
         y_pred.append(row[0])
         # print "predicted: {0} - actual: {1}\n".format(row[0], row[1])
-    #TODO: write y_pred, y_true to 2 column csv
 
 
     accuracy = labels_and_preds.filter(lambda (v,p): v == p).count() / float(labeledPointsRdd.count())
@@ -64,14 +74,21 @@ def main(sc, filename):
     predictions = dt_model.predict(labeledPointsRdd.map(lambda p: p.features))
     labels_and_preds_dt = labeledPointsRdd.map(lambda p: p.label).zip(predictions)
     labels_and_preds_dt_collected = labels_and_preds.collect()
-    print "Predictions: Logistic Regression"
-    for row in labels_and_preds_dt_collected:
-        print "predicted: {0} - actual: {1}\n".format(row[0], row[1])
+
 
     accuracy_dt = labels_and_preds_dt.filter(lambda (v, p): v == p).count() / float(labeledPointsRdd.count())
 
     print_box()
     print "Prediction Accuracy (Decision Tree): {}".format(round(accuracy_dt, 4))
+    print_box()
+    print "\n"
+
+    #random forest predictions
+    predictions_rf = rf_model.predict(labeledPointsRdd.map(lambda p: p.features))
+    labels_and_preds_rf = labeledPointsRdd.map(lambda p: p.label).zip(predictions_rf)
+    accuracy_rf = labels_and_preds_rf.filter(lambda (v, p): v == p).count() / float(labeledPointsRdd.count())
+    print_box()
+    print "Prediction Accuracy (Random Forest): {}".format(round(accuracy_rf, 4))
     print_box()
 
 

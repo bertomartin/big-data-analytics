@@ -3,6 +3,7 @@
 from pyspark import SparkContext, SparkConf
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 from pyspark.mllib.tree import DecisionTree
+from pyspark.mllib.tree import RandomForest
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
 from pyspark.mllib.regression import LabeledPoint
 from numpy import array
@@ -23,7 +24,7 @@ def parse_lines(line):
     return LabeledPoint(target, array([float(x) for x in clean_line_split]))
 
 def get_data(sc, filename):
-    weights = [.6, .4]
+    weights = [.8, .2]
     data_raw = sc.textFile(filename)
     labeled_points = data_raw.map(parse_lines)
     train, test = labeled_points.randomSplit(weights)
@@ -46,7 +47,7 @@ def create_model(name, training):
         print "Random Forest Model"
         print_box()
         model = RandomForest.trainClassifier(training, numClasses=2, categoricalFeaturesInfo={},
-                                    impurity='gini', maxDepth=5, maxBins=100)
+                                    numTrees=15, featureSubsetStrategy="auto", impurity='gini', maxDepth=5, maxBins=50)
 
     return model
 
@@ -68,7 +69,10 @@ def evaluate_model(labels, predictions):
 def main(sc, filename):
 
     training, testing = get_data(sc, filename)
-    model = create_model('tree', training)
+    model = create_model('rf', training)
+    # model.save(sc, "rf_model.model")
+    # model.save(sc, "rf_model.model")
+    # model.save(sc, "logit_model.model")
 
     predictions = model.predict(testing.map(lambda p: p.features))
     labs = testing.map(lambda p: p.label)
