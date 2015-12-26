@@ -4,6 +4,8 @@ The aim of this project is to build a model that predicts whether a company will
 
 This information can then be used as the input to a trading system. It can also be used to gain a better insight into a company's earnings, maybe as a first step to further research.
 
+I've created a youtube video that further explains the project: https://youtu.be/6nNn3vxC4zE
+
 ## Data
 We download OHLC(V) data from Yahoo. We gather earnings data from both Estimize and Quantdl/Zack's. 
 
